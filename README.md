@@ -3,7 +3,7 @@ Automated stock/forex trading software
 
 <b>What is this?</b>
 
-This Repo is a collection of my MQL4 Scripts. Some of them were published in and developed for my book <a href="https://goo.gl/sE0aPm">"Algorithmisches Trading - MetaTrader4 MQL4"</a>. My book was publish on 12.2015 by Tredition and explains (on german) how to develop automated trading strategies/software with the programming language MQL4 using its own IDE called "MetaEditor". 
+This Repo is a collection of my MQL4 Scripts. Some of them were published in and developed for my book <a href="https://goo.gl/sE0aPm">"Algorithmisches Trading - MetaTrader4 MQL4"</a>. My book was published on 12.2015 by Tredition and explains (on german) how to develop automated trading strategies/software with the programming language MQL4 using its own IDE called "MetaEditor". 
 
 
 <b>What is MQL4?</b>
