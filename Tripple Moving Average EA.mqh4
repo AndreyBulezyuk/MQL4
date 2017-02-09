@@ -1,0 +1,184 @@
+#property copyright "Andrey Bulezyuk"
+#property link      "https://www.in-trading.eu"
+#property version   "1.00"
+#property strict
+
+input double   LotGroesse=0.1;
+input int      FilterMA=200;
+input int      HauptMA=50;
+input int      SignalMA=15;
+input bool     StopLossVerwenden=true;
+input int      StopLoss=500; //100=10Pips; 1000=100Pips
+input bool     TakeProfitVerwenden=true;
+input int      TakeProfit=1000; //100=10Pips; 1000=100Pips
+input bool     PrimaeresGegensignal=true;
+
+int OnInit()
+  {
+
+   if(FilterMA<HauptMA || FilterMA<SignalMA)
+     {
+      Alert("Filter MA muss größer sein als HauptMA und SignalMA");
+      return(INIT_PARAMETERS_INCORRECT);
+     }
+
+   if(HauptMA<SignalMA)
+     {
+      Alert("SignalMA muss kleiner sein als HauptMA");
+      return(INIT_PARAMETERS_INCORRECT);
+     }
+
+   return(INIT_SUCCEEDED);
+  }
+
+void OnDeinit(const int reason)
+  {
+
+  }
+
+void OnTick()
+  {
+   double FilterMAWert0 = iMA(Symbol(),Period(),FilterMA,0,0,0,0);
+   double SLTemp = 0.0;
+   double TPTemp = 0.0;
+
+   double HauptMAWert0=iMA(Symbol(),Period(),HauptMA,0,0,0,0);
+   double HauptMAWert1=iMA(Symbol(),Period(),HauptMA,0,0,0,1);
+
+   double SignalMAWert0=iMA(Symbol(),Period(),SignalMA,0,0,0,0);
+   double SignalMAWert1=iMA(Symbol(),Period(),SignalMA,0,0,0,1);
+
+
+   // wenn keine offene Positionen vorhanden sind
+  if(OrdersTotal() <= 0) 
+  {
+    if(FilterMAWert0<HauptMAWert0) //Filter bullisch
+    {
+
+       if(SignalMAWert1<=HauptMAWert1 && SignalMAWert0>HauptMAWert0) //Signal bullisch
+       {
+          if(AccountFreeMarginCheck(Symbol(),0,LotGroesse) > 1) //Ausreichend Margin?
+          {
+              
+              if(StopLossVerwenden==true)
+              {
+                 SLTemp=Bid-StopLoss*Point;
+              }else{
+                 SLTemp=0.0;
+              }
+              
+              if(TakeProfitVerwenden==true)
+              {
+                 TPTemp=Bid+TakeProfit*Point;
+              }else{
+                 TPTemp=0.0;
+              }
+              
+              if(OrderSend(Symbol(),OP_BUY,LotGroesse,Ask,0,SLTemp,TPTemp,"Tripple MA Strategie",12345,0,clrNONE) == true)
+              {
+                  Alert("Long Position (Lot:"+LotGroesse+"|SL:"+SLTemp+"|TP:"+TPTemp+") eröffnet!");
+              }
+          }else{
+               Alert("Keine freie Margin nach Positionseröffnung!");
+          }  
+       }
+       
+    
+    }else{// Filter bearisch
+       if(SignalMAWert1>HauptMAWert1 && SignalMAWert0<HauptMAWert0) //Signal bearisch
+       {
+          if(AccountFreeMarginCheck(Symbol(),1,LotGroesse) > 1) //Ausreichend Margin?
+          {
+              if(StopLossVerwenden==true)
+              {
+                 SLTemp=Ask+StopLoss*Point;
+              }else{
+                 SLTemp=0.0;
+              }
+              
+              if(TakeProfitVerwenden==true)
+              {
+                 TPTemp=Ask-TakeProfit*Point;
+              }else{
+                 TPTemp=0.0;
+              }
+                            
+      if(OrderSend(Symbol(),OP_SELL,LotGroesse,Bid,0,SLTemp,TPTemp,"Tripple MA Strategie",12345,0,clrNONE)==true)
+              {
+                 Alert("Short Position (Lot:"+LotGroesse+"|SL:"+SLTemp+"|TP:"+TPTemp+") eröffnet!");
+              }
+          
+       }else{
+            Alert("Keine freie Margin nach Positionseröffnung!");
+       }       
+    }
+  }
+ }
+  // Bei Signalgenerierung gegensätzliche Positionen schließen //
+  if(OrdersTotal() > 0)
+  {
+      if(PrimaeresGegensignal==true)
+      {
+         //Offene Positionen bei Gegensignal inkl. Filter schliessen//
+          if(FilterMAWert0<HauptMAWert0) //Filter bullisch
+          {
+             if(SignalMAWert1<HauptMAWert1 && SignalMAWert0>HauptMAWert0) //Signal bullisch -> Short schliessen
+             {
+                for(int a=0;a<OrdersTotal();a++)
+                {
+                  if(OrderSelect(a,SELECT_BY_POS,MODE_TRADES)) // Offene Position auswaehlen
+                  {
+                     if(OrderType()==1) // Wenn Short
+                     {
+                        OrderClose(OrderTicket(),OrderLots(),Ask,0,clrNONE); //Dann schliessen  
+                     }
+                  }
+                }
+             }                    
+          }else{// Filter bearisch
+             if(SignalMAWert1>HauptMAWert1 && SignalMAWert0>HauptMAWert0) //Signal bearisch -> Long schliessen
+             {
+                for(int b=0;b<OrdersTotal();b++)
+                {
+                  if(OrderSelect(b,SELECT_BY_POS,MODE_TRADES)) // Offene Position auswaehlen
+                  {
+                     if(OrderType()==0) // Wenn Long
+                     {
+                        OrderClose(OrderTicket(),OrderLots(),Bid,0,clrNONE); //Dann schliessen  
+                     }
+                  }
+                }         
+             }       
+          }  
+       }else{
+    //Offene Positionen bei Gegensignal exkl. Filter schliessen//
+          if(SignalMAWert1<HauptMAWert1 && SignalMAWert0>HauptMAWert0) //Signal bullisch -> Short schliessen
+          {
+             for(int a=0;a<OrdersTotal();a++)
+             {
+               if(OrderSelect(a,SELECT_BY_POS,MODE_TRADES)) // Offene Position auswaehlen
+               {
+                  if(OrderType()==1) // Wenn Short
+                  {
+                     OrderClose(OrderTicket(),OrderLots(),Ask,0,clrNONE); //Dann schliessen  
+                  }
+               }
+             }
+          }
+             
+          if(SignalMAWert1>HauptMAWert1 && SignalMAWert0<HauptMAWert0) //Signal bearisch -> Long schliessen
+          {
+             for(int b=0;b<OrdersTotal();b++)
+             {
+               if(OrderSelect(b,SELECT_BY_POS,MODE_TRADES)) // Offene Position auswaehlen
+               {
+                  if(OrderType()==0) // Wenn Long
+                  {
+                     OrderClose(OrderTicket(),OrderLots(),Bid,0,clrNONE); //Dann schliessen  
+                  }
+               }
+             }         
+          }       
+    }
+  }
+}
